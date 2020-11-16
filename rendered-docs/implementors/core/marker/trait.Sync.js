@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["signal_neon_futures"] = [{"text":"impl !Sync for JsAsyncContext","synthetic":true,"types":[]},{"text":"impl&lt;T&gt; !Sync for JsAsyncContextKey&lt;T&gt;","synthetic":true,"types":[]},{"text":"impl&lt;T&gt; !Sync for JsFuture&lt;T&gt;","synthetic":true,"types":[]},{"text":"impl&lt;'a, T&gt; !Sync for JsFutureBuilder&lt;'a, T&gt;","synthetic":true,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
