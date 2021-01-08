@@ -1,3 +1,3 @@
 (function() {var implementors = {};
-implementors["signal_neon_futures"] = [{"text":"impl Freeze for JsAsyncContext","synthetic":true,"types":[]},{"text":"impl&lt;T&gt; Freeze for JsAsyncContextKey&lt;T&gt;","synthetic":true,"types":[]},{"text":"impl&lt;T&gt; Freeze for JsFuture&lt;T&gt;","synthetic":true,"types":[]},{"text":"impl&lt;'a, T&gt; Freeze for JsFutureBuilder&lt;'a, T&gt;","synthetic":true,"types":[]}];
+implementors["signal_neon_futures"] = [{"text":"impl Freeze for PersistentException","synthetic":true,"types":[]},{"text":"impl&lt;T&gt; Freeze for JsFuture&lt;T&gt;","synthetic":true,"types":[]},{"text":"impl&lt;'a, F, T&gt; Freeze for JsFutureBuilder&lt;'a, F, T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: Freeze,&nbsp;</span>","synthetic":true,"types":[]}];
 if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

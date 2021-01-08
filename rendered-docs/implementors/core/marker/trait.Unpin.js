@@ -1,3 +1,3 @@
 (function() {var implementors = {};
-implementors["signal_neon_futures"] = [{"text":"impl Unpin for JsAsyncContext","synthetic":true,"types":[]},{"text":"impl&lt;T&gt; Unpin for JsAsyncContextKey&lt;T&gt;","synthetic":true,"types":[]},{"text":"impl&lt;T&gt; Unpin for JsFuture&lt;T&gt;","synthetic":true,"types":[]},{"text":"impl&lt;'a, T&gt; Unpin for JsFutureBuilder&lt;'a, T&gt;","synthetic":true,"types":[]}];
+implementors["signal_neon_futures"] = [{"text":"impl Unpin for PersistentException","synthetic":true,"types":[]},{"text":"impl&lt;T&gt; Unpin for JsFuture&lt;T&gt;","synthetic":true,"types":[]},{"text":"impl&lt;'a, F, T&gt; Unpin for JsFutureBuilder&lt;'a, F, T&gt; <span class=\"where fmt-newline\">where<br>&nbsp;&nbsp;&nbsp;&nbsp;F: Unpin,&nbsp;</span>","synthetic":true,"types":[]}];
 if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

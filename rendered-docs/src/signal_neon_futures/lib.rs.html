@@ -41,15 +41,9 @@
 <span id="38">38</span>
 <span id="39">39</span>
 <span id="40">40</span>
-<span id="41">41</span>
-<span id="42">42</span>
-<span id="43">43</span>
-<span id="44">44</span>
-<span id="45">45</span>
-<span id="46">46</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">//</span>
-<span class="comment">// Copyright 2020 Signal Messenger, LLC.</span>
+<span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="comment">//</span>
 
@@ -61,37 +55,31 @@
 <span class="doccomment">//! This does not naturally compose with Rust&#39;s `async`, which works in terms of [Futures](trait@std::future::Future).</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! This crate provides functionality for (1) wrapping JavaScript futures so they can be awaited on in Rust,</span>
-<span class="doccomment">//! and (2) producing a JavaScript promise that wraps a Rust future. It does so by synchronously resuming execution</span>
-<span class="doccomment">//! of the Rust future whenever an awaited JavaScript promise is resolved.</span>
+<span class="doccomment">//! and (2) producing a JavaScript promise that wraps a Rust future. It does so by resuming execution</span>
+<span class="doccomment">//! of the Rust future on the JavaScript microtask queue whenever an awaited JavaScript promise is resolved.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! This approach does have some caveats:</span>
-<span class="doccomment">//! - The Neon JavaScript context is still lifetime-scoped, so data must be explicitly persisted across `await` points using [JsAsyncContext::register_context_data].</span>
-<span class="doccomment">//! - Because execution is synchronous, no *other* kinds of blocking futures are supported. Any `await` must ultimately bottom out in a JsFuture.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! To get started, look at the [promise()] function and the [JsAsyncContext::await_promise] method.</span>
-<span class="doccomment">//!</span>
-<span class="doccomment">//! This crate is definitely pushing the limits of what Neon supports. Use outside of libsignal-client at your own risk.</span>
+<span class="doccomment">//! To get started, look at the [promise()] function and the [JsFuture::await_promise] method.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [Neon]: https://neon-bindings.com/</span>
 
-<span class="attribute">#![<span class="ident">feature</span>(<span class="ident">cell_leak</span>)]</span>
 <span class="attribute">#![<span class="ident">feature</span>(<span class="ident">trait_alias</span>)]</span>
+<span class="attribute">#![<span class="ident">feature</span>(<span class="ident">wake_trait</span>)]</span>
 <span class="attribute">#![<span class="ident">warn</span>(<span class="ident">missing_docs</span>)]</span>
 
-<span class="kw">mod</span> <span class="ident">context</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">context</span>::{<span class="ident">JsAsyncContext</span>, <span class="ident">JsAsyncContextKey</span>};
+<span class="kw">mod</span> <span class="ident">executor</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">executor</span>::{<span class="ident">ContextEx</span>, <span class="ident">EventQueueEx</span>};
+
+<span class="kw">mod</span> <span class="ident">exception</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">exception</span>::<span class="ident">PersistentException</span>;
 
 <span class="kw">mod</span> <span class="ident">future</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">future</span>::<span class="ident">JsFuture</span>;
-
-<span class="kw">mod</span> <span class="ident">future_builder</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">future_builder</span>::<span class="ident">JsFutureBuilder</span>;
-
-<span class="kw">mod</span> <span class="ident">result</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">result</span>::<span class="ident">JsPromiseResult</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">future</span>::{<span class="ident">JsFuture</span>, <span class="ident">JsFutureBuilder</span>};
 
 <span class="kw">mod</span> <span class="ident">promise</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">promise</span>::{<span class="ident">fulfill_promise</span>, <span class="ident">promise</span>};
+
+<span class="kw">mod</span> <span class="ident">result</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">result</span>::<span class="ident">JsPromiseResult</span>;
 
 <span class="kw">mod</span> <span class="ident">util</span>;
 </pre></div>

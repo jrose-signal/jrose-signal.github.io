@@ -134,32 +134,18 @@
 <span id="131">131</span>
 <span id="132">132</span>
 <span id="133">133</span>
-<span id="134">134</span>
-<span id="135">135</span>
-<span id="136">136</span>
-<span id="137">137</span>
-<span id="138">138</span>
-<span id="139">139</span>
-<span id="140">140</span>
-<span id="141">141</span>
-<span id="142">142</span>
-<span id="143">143</span>
-<span id="144">144</span>
-<span id="145">145</span>
-<span id="146">146</span>
-<span id="147">147</span>
-<span id="148">148</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">//</span>
-<span class="comment">// Copyright 2020 Signal Messenger, LLC.</span>
+<span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
 <span class="comment">// SPDX-License-Identifier: AGPL-3.0-only</span>
 <span class="comment">//</span>
 
 <span class="kw">use</span> <span class="ident">futures</span>::<span class="ident">FutureExt</span>;
 <span class="kw">use</span> <span class="ident">neon</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">future</span>::<span class="ident">Future</span>;
-<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">panic</span>::{<span class="ident">catch_unwind</span>, <span class="ident">AssertUnwindSafe</span>};
+<span class="kw">use</span> <span class="ident">std</span>::<span class="ident">panic</span>::{<span class="ident">catch_unwind</span>, <span class="ident">AssertUnwindSafe</span>, <span class="ident">UnwindSafe</span>};
 
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">executor</span>::<span class="ident">ContextEx</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">describe_any</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
@@ -182,8 +168,7 @@
 <span class="doccomment">/// Produces a JavaScript Promise that represents the result of a Rust computation.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// There&#39;s a lot going on here, so let&#39;s break it down:</span>
-<span class="doccomment">/// - `callback` is a function that is called synchronously to produce a future (`async` block).</span>
-<span class="doccomment">/// - That resulting future (`R`) must itself return a &quot;fulfill&quot; function, or fail with a value stored in the [JsAsyncContext].</span>
+<span class="doccomment">/// - `future` must return a &quot;fulfill&quot; function, or fail with a JavaScript error stored as a PersistentException.</span>
 <span class="doccomment">/// - The &quot;fulfill&quot; function (`F`) must produce a result in a synchronous JavaScript context, or fail with a JavaScript exception.</span>
 <span class="doccomment">/// - That value (`V`) will be the final result of the JavaScript Promise.</span>
 <span class="doccomment">/// - If there are any failures during the evaluation of the future or &quot;fulfill&quot; function, they will result in the rejection of the Promise.</span>
@@ -197,94 +182,79 @@
 <span class="doccomment">/// #</span>
 <span class="doccomment">/// # struct TraitImpl;</span>
 <span class="doccomment">/// # impl TraitImpl {</span>
-<span class="doccomment">/// #   fn new(info: JsAsyncContextKey&lt;JsObject&gt;, context: JsAsyncContext) -&gt; Self { Self }</span>
+<span class="doccomment">/// #   fn new(queue: EventQueue, info: Root&lt;JsObject&gt;) -&gt; Self { Self }</span>
 <span class="doccomment">/// # }</span>
-<span class="doccomment">/// # async fn compute_result(t: TraitImpl) -&gt; Result&lt;String, JsAsyncContextKey&lt;JsValue&gt;&gt; { Ok(&quot;abc&quot;.into()) }</span>
+<span class="doccomment">/// # async fn compute_result(t: TraitImpl) -&gt; Result&lt;String, PersistentException&gt; { Ok(&quot;abc&quot;.into()) }</span>
 <span class="doccomment">/// #</span>
 <span class="doccomment">/// fn js_compute_result(mut cx: FunctionContext) -&gt; JsResult&lt;JsObject&gt; {</span>
 <span class="doccomment">///     let js_info = cx.argument::&lt;JsObject&gt;(0)?;</span>
-<span class="doccomment">///     promise(&amp;mut cx, |cx, future_context| {</span>
-<span class="doccomment">///         let saved_info = future_context.register_context_data(cx, js_info);</span>
-<span class="doccomment">///         let trait_impl = TraitImpl::new(saved_info, future_context);</span>
-<span class="doccomment">///         async move {</span>
-<span class="doccomment">///             let result = compute_result(trait_impl).await?;</span>
-<span class="doccomment">///             fulfill_promise(move |cx| Ok(cx.string(result)))</span>
-<span class="doccomment">///         }</span>
+<span class="doccomment">///     let trait_impl = TraitImpl::new(cx.queue(), js_info.root(&amp;mut cx));</span>
+<span class="doccomment">///     promise(&amp;mut cx, async move {</span>
+<span class="doccomment">///         let result = compute_result(trait_impl).await?;</span>
+<span class="doccomment">///         fulfill_promise(move |cx| Ok(cx.string(result)))</span>
 <span class="doccomment">///     })</span>
 <span class="doccomment">/// }</span>
 <span class="doccomment">/// ```</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">promise</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">V</span>, <span class="ident">F</span>, <span class="ident">R</span><span class="op">&gt;</span>(
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">promise</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">V</span>, <span class="ident">F</span><span class="op">&gt;</span>(
     <span class="ident">cx</span>: <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>,
-    <span class="ident">callback</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>, <span class="ident">JsAsyncContext</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">R</span>,
+    <span class="ident">future</span>: <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">PersistentException</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">UnwindSafe</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">JsObject</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">V</span>: <span class="ident">neon</span>::<span class="ident">types</span>::<span class="ident">Value</span>,
-    <span class="ident">F</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span>, <span class="ident">V</span><span class="op">&gt;</span>,
-    <span class="ident">R</span>: <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">JsAsyncContextKey</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
+    <span class="ident">F</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">TaskContext</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span>, <span class="ident">V</span><span class="op">&gt;</span> <span class="op">+</span> <span class="ident">Send</span> <span class="op">+</span> <span class="ident">UnwindSafe</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>,
 {
-    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">promise</span> <span class="op">=</span> <span class="prelude-val">None</span>;
+    <span class="kw">let</span> <span class="ident">callbacks_object</span> <span class="op">=</span> <span class="ident">cx</span>.<span class="ident">empty_object</span>();
+    <span class="kw">let</span> <span class="ident">save_promise_callbacks_fn</span> <span class="op">=</span> <span class="ident">JsFunction</span>::<span class="ident">new</span>(<span class="ident">cx</span>, <span class="ident">save_promise_callbacks</span>)<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">bind_fn</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">save_promise_callbacks_fn</span>
+        .<span class="ident">get</span>(<span class="ident">cx</span>, <span class="string">&quot;bind&quot;</span>)<span class="question-mark">?</span>
+        .<span class="ident">downcast_or_throw</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">bound_save_promise_callbacks</span> <span class="op">=</span>
+        <span class="ident">bind_fn</span>.<span class="ident">call</span>(<span class="ident">cx</span>, <span class="ident">save_promise_callbacks_fn</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">callbacks_object</span>])<span class="question-mark">?</span>;
 
-    <span class="ident">JsAsyncContext</span>::<span class="ident">run</span>(<span class="ident">cx</span>, <span class="op">|</span><span class="ident">cx</span>, <span class="ident">future_context</span><span class="op">|</span> {
-        <span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">callback</span>(<span class="ident">cx</span>, <span class="ident">future_context</span>.<span class="ident">clone</span>());
+    <span class="kw">let</span> <span class="ident">promise_ctor</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">cx</span>.<span class="ident">global</span>().<span class="ident">get</span>(<span class="ident">cx</span>, <span class="string">&quot;Promise&quot;</span>)<span class="question-mark">?</span>.<span class="ident">downcast_or_throw</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">promise</span> <span class="op">=</span> <span class="ident">promise_ctor</span>.<span class="ident">construct</span>(<span class="ident">cx</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">bound_save_promise_callbacks</span>])<span class="question-mark">?</span>;
 
-        <span class="kw">let</span> <span class="ident">object</span> <span class="op">=</span> <span class="ident">cx</span>.<span class="ident">empty_object</span>();
-        <span class="kw">let</span> <span class="ident">save_promise_callbacks_fn</span> <span class="op">=</span> <span class="ident">JsFunction</span>::<span class="ident">new</span>(<span class="ident">cx</span>, <span class="ident">save_promise_callbacks</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">bind_fn</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">save_promise_callbacks_fn</span>
-            .<span class="ident">get</span>(<span class="ident">cx</span>, <span class="string">&quot;bind&quot;</span>)<span class="question-mark">?</span>
-            .<span class="ident">downcast_or_throw</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
-        <span class="kw">let</span> <span class="ident">bound_save_promise_callbacks</span> <span class="op">=</span>
-            <span class="ident">bind_fn</span>.<span class="ident">call</span>(<span class="ident">cx</span>, <span class="ident">save_promise_callbacks_fn</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">object</span>])<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">callbacks_object_root</span> <span class="op">=</span> <span class="ident">callbacks_object</span>.<span class="ident">root</span>(<span class="ident">cx</span>);
+    <span class="kw">let</span> <span class="ident">queue</span> <span class="op">=</span> <span class="ident">cx</span>.<span class="ident">queue</span>();
 
-        <span class="kw">let</span> <span class="ident">promise_ctor</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span>
-            <span class="ident">cx</span>.<span class="ident">global</span>().<span class="ident">get</span>(<span class="ident">cx</span>, <span class="string">&quot;Promise&quot;</span>)<span class="question-mark">?</span>.<span class="ident">downcast_or_throw</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
-        <span class="ident">promise</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">promise_ctor</span>.<span class="ident">construct</span>(<span class="ident">cx</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">bound_save_promise_callbacks</span>])<span class="question-mark">?</span>);
+    <span class="ident">cx</span>.<span class="ident">run_future_on_queue</span>(<span class="ident">async</span> <span class="kw">move</span> {
+        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">future</span>.<span class="ident">catch_unwind</span>().<span class="ident">await</span>;
 
-        <span class="kw">let</span> <span class="ident">promise_object_key</span> <span class="op">=</span> <span class="ident">future_context</span>.<span class="ident">register_context_data</span>(<span class="ident">cx</span>, <span class="ident">object</span>);
-
-        <span class="prelude-val">Ok</span>(<span class="ident">async</span> <span class="kw">move</span> {
-            <span class="comment">// FIXME: This AssertUnwindSafe is actually a little sketchy!</span>
-            <span class="comment">// Can JsFuture and JsAsyncContext be marked as UnwindSafe?</span>
-            <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">AssertUnwindSafe</span>(<span class="ident">future</span>).<span class="ident">catch_unwind</span>().<span class="ident">await</span>;
-
-            <span class="comment">// Any JavaScript errors that happen here (as opposed to in the result callback)</span>
-            <span class="comment">// are beyond our ability to recover.</span>
-            <span class="comment">// Ignore them and let JsAsyncContext complain about the uncaught errors.</span>
-            <span class="kw">let</span> <span class="kw">_</span> <span class="op">=</span> <span class="ident">future_context</span>.<span class="ident">with_context</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">cx</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NeonResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-                <span class="kw">let</span> <span class="ident">resolved_result</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">result</span> {
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(<span class="ident">resolve</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                        <span class="comment">// FIXME: This AssertUnwindSafe is likewise sketchy.</span>
-                        <span class="kw">let</span> <span class="ident">resolve</span> <span class="op">=</span> <span class="ident">AssertUnwindSafe</span>(<span class="ident">resolve</span>);
-                        <span class="comment">// FIXME: This one&#39;s okay, though; the JS context can never be in an inconsistent state itself.</span>
-                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cx</span> <span class="op">=</span> <span class="ident">AssertUnwindSafe</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>);
-                        <span class="ident">catch_unwind</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">cx</span>.<span class="ident">try_catch</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">resolve</span>.<span class="number">0</span>(<span class="ident">cx</span>)))
-                    }
-                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">saved_error</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                        <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">future_context</span>.<span class="ident">get_context_data</span>(<span class="ident">cx</span>, <span class="ident">saved_error</span>)))
-                    }
-                    <span class="prelude-val">Err</span>(<span class="ident">panic</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">panic</span>),
-                };
-                <span class="kw">let</span> <span class="ident">folded_result</span> <span class="op">=</span> <span class="ident">resolved_result</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">panic</span><span class="op">|</span> {
-                    <span class="prelude-val">Err</span>(<span class="ident">cx</span>
-                        .<span class="ident">error</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;unexpected panic: {}&quot;</span>, <span class="ident">describe_any</span>(<span class="kw-2">&amp;</span><span class="ident">panic</span>)))
-                        .<span class="ident">expect</span>(<span class="string">&quot;can create an Error&quot;</span>)
-                        .<span class="ident">upcast</span>())
-                });
-
-                <span class="kw">let</span> (<span class="ident">value</span>, <span class="ident">callback_name</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">folded_result</span> {
-                    <span class="prelude-val">Ok</span>(<span class="ident">value</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">value</span>.<span class="ident">upcast</span>(), <span class="ident">RESOLVE_SLOT</span>),
-                    <span class="prelude-val">Err</span>(<span class="ident">exception</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">exception</span>, <span class="ident">REJECT_SLOT</span>),
-                };
-
-                <span class="kw">let</span> <span class="ident">promise</span> <span class="op">=</span> <span class="ident">future_context</span>.<span class="ident">get_context_data</span>(<span class="ident">cx</span>, <span class="ident">promise_object_key</span>);
-                <span class="kw">let</span> <span class="ident">promise_callback</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span>
-                    <span class="ident">promise</span>.<span class="ident">get</span>(<span class="ident">cx</span>, <span class="ident">callback_name</span>)<span class="question-mark">?</span>.<span class="ident">downcast_or_throw</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
-                <span class="ident">promise_callback</span>.<span class="ident">call</span>(<span class="ident">cx</span>, <span class="ident">promise</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">value</span>])<span class="question-mark">?</span>;
-                <span class="prelude-val">Ok</span>(())
+        <span class="ident">queue</span>.<span class="ident">send</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">cx</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NeonResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
+            <span class="kw">let</span> <span class="ident">resolved_result</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">result</span> {
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(<span class="ident">resolve</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="comment">// This AssertUnwindSafe is not technically safe.</span>
+                    <span class="comment">// If we get a panic downstream, it is entirely possible the JavaScript context won&#39;t be usable anymore.</span>
+                    <span class="comment">// However, that&#39;s no more unsafe than JsAsyncContext::with_context,</span>
+                    <span class="comment">// or for that matter Neon automatically catching panics by default.</span>
+                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cx</span> <span class="op">=</span> <span class="ident">AssertUnwindSafe</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>);
+                    <span class="ident">catch_unwind</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">cx</span>.<span class="ident">try_catch</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">resolve</span>(<span class="ident">cx</span>)))
+                }
+                <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">exception</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">exception</span>.<span class="ident">into_inner</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>))),
+                <span class="prelude-val">Err</span>(<span class="ident">panic</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">panic</span>),
+            };
+            <span class="kw">let</span> <span class="ident">folded_result</span> <span class="op">=</span> <span class="ident">resolved_result</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">panic</span><span class="op">|</span> {
+                <span class="prelude-val">Err</span>(<span class="ident">cx</span>
+                    .<span class="ident">error</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;unexpected panic: {}&quot;</span>, <span class="ident">describe_any</span>(<span class="kw-2">&amp;</span><span class="ident">panic</span>)))
+                    .<span class="ident">expect</span>(<span class="string">&quot;can create an Error&quot;</span>)
+                    .<span class="ident">upcast</span>())
             });
-        })
-    })<span class="question-mark">?</span>;
 
-    <span class="prelude-val">Ok</span>(<span class="ident">promise</span>.<span class="ident">unwrap</span>())
+            <span class="kw">let</span> (<span class="ident">value</span>, <span class="ident">callback_name</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">folded_result</span> {
+                <span class="prelude-val">Ok</span>(<span class="ident">value</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">value</span>.<span class="ident">upcast</span>(), <span class="ident">RESOLVE_SLOT</span>),
+                <span class="prelude-val">Err</span>(<span class="ident">exception</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">exception</span>, <span class="ident">REJECT_SLOT</span>),
+            };
+
+            <span class="kw">let</span> <span class="ident">callbacks_object</span> <span class="op">=</span> <span class="ident">callbacks_object_root</span>.<span class="ident">into_inner</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>);
+            <span class="kw">let</span> <span class="ident">promise_callback</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">callbacks_object</span>
+                .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>, <span class="ident">callback_name</span>)<span class="question-mark">?</span>
+                .<span class="ident">downcast_or_throw</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>)<span class="question-mark">?</span>;
+            <span class="ident">promise_callback</span>.<span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>, <span class="ident">callbacks_object</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">value</span>])<span class="question-mark">?</span>;
+            <span class="prelude-val">Ok</span>(())
+        });
+    });
+
+    <span class="prelude-val">Ok</span>(<span class="ident">promise</span>)
 }
 
 <span class="doccomment">/// Use this to return your &quot;fulfill&quot; function when using [promise()].</span>
@@ -294,7 +264,7 @@
 <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fulfill_promise</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="ident">callback</span>: <span class="ident">C</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">E</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">Value</span>,
-    <span class="ident">C</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span>,
+    <span class="ident">C</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">TaskContext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span>,
 {
     <span class="prelude-val">Ok</span>(<span class="ident">callback</span>)
 }
