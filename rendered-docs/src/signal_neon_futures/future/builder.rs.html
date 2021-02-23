@@ -86,9 +86,6 @@
 <span id="83">83</span>
 <span id="84">84</span>
 <span id="85">85</span>
-<span id="86">86</span>
-<span id="87">87</span>
-<span id="88">88</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">//</span>
 <span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
@@ -100,11 +97,11 @@
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">future</span>::<span class="kw-2">*</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">PersistentException</span>;
 
-<span class="doccomment">/// A callback that can retrieve a JavaScript promise object. See [JsFuture::await_promise].</span>
+<span class="doccomment">/// A callback that can retrieve a JavaScript promise object. See [JsFuture::get_promise].</span>
 <span class="kw">pub</span> <span class="kw">trait</span> <span class="ident">GetPromiseCallback</span> <span class="op">=</span>
     <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">TaskContext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">JsObject</span><span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span>;
 
-<span class="doccomment">/// Sets up a [JsFuture] using a builder pattern. See [JsFuture::await_promise].</span>
+<span class="doccomment">/// Sets up a [JsFuture] using a builder pattern. See [JsFuture::get_promise].</span>
 <span class="kw">pub</span> <span class="kw">struct</span> <span class="ident">JsFutureBuilder</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">F</span>: <span class="ident">GetPromiseCallback</span>, <span class="ident">T</span>: <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span><span class="op">&gt;</span> {
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">queue</span>: <span class="kw-2">&amp;</span><span class="lifetime">&#39;a</span> <span class="ident">EventQueue</span>,
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="ident">get_promise</span>: <span class="ident">F</span>,
@@ -117,31 +114,25 @@
     <span class="doccomment">/// Note that if there was a JavaScript exception during the creation of this JsFutureBuilder,</span>
     <span class="doccomment">/// `transform` will be called **immediately** to produce a result,</span>
     <span class="doccomment">/// treating the exception as a promise rejection.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">then</span><span class="op">&lt;</span><span class="ident">XF</span><span class="op">&gt;</span>(
-        <span class="self">self</span>,
-        <span class="ident">transform</span>: <span class="ident">XF</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsFuture</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">XF</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>, <span class="ident">JsPromiseResult</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span>
-            <span class="op">+</span> <span class="lifetime">&#39;static</span>
-            <span class="op">+</span> <span class="ident">Send</span> {
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">then</span><span class="op">&lt;</span><span class="ident">XF</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">transform</span>: <span class="ident">XF</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsFuture</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">XF</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>, <span class="ident">JsPromiseResult</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">T</span> <span class="op">+</span> <span class="lifetime">&#39;static</span> <span class="op">+</span> <span class="ident">Send</span>,
+    {
         <span class="kw">let</span> <span class="ident">future</span> <span class="op">=</span> <span class="ident">JsFuture</span>::<span class="ident">new</span>(<span class="ident">transform</span>);
-        <span class="kw">let</span> <span class="ident">fulfillment_token</span> <span class="op">=</span> <span class="ident">WeakFutureToken</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">future</span>);
+        <span class="kw">let</span> <span class="ident">settle_token</span> <span class="op">=</span> <span class="ident">WeakFutureToken</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">future</span>);
         <span class="kw">let</span> <span class="ident">get_promise</span> <span class="op">=</span> <span class="self">self</span>.<span class="ident">get_promise</span>;
 
         <span class="self">self</span>.<span class="ident">queue</span>.<span class="ident">send</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">cx</span><span class="op">|</span> {
             <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">maybe_bound_reject</span> <span class="op">=</span> <span class="prelude-val">None</span>;
             <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">cx</span>.<span class="ident">try_catch</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> {
-                <span class="kw">let</span> <span class="ident">bound_reject</span> <span class="op">=</span>
-                    <span class="ident">fulfillment_token</span>.<span class="ident">bind_fulfill_promise</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">JsRejectedResult</span><span class="op">&gt;</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
+                <span class="kw">let</span> <span class="ident">bound_reject</span> <span class="op">=</span> <span class="ident">settle_token</span>.<span class="ident">bind_settle_promise</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">JsRejectedResult</span><span class="op">&gt;</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
                 <span class="ident">maybe_bound_reject</span> <span class="op">=</span> <span class="prelude-val">Some</span>(<span class="ident">bound_reject</span>);
 
-                <span class="kw">let</span> <span class="ident">bound_resolve</span> <span class="op">=</span>
-                    <span class="ident">fulfillment_token</span>.<span class="ident">bind_fulfill_promise</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">JsResolvedResult</span><span class="op">&gt;</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
+                <span class="kw">let</span> <span class="ident">bound_fulfill</span> <span class="op">=</span> <span class="ident">settle_token</span>.<span class="ident">bind_settle_promise</span>::<span class="op">&lt;</span><span class="kw">_</span>, <span class="ident">JsFulfilledResult</span><span class="op">&gt;</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
 
                 <span class="kw">let</span> <span class="ident">promise</span> <span class="op">=</span> <span class="ident">get_promise</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
-                <span class="kw">let</span> <span class="ident">then</span> <span class="op">=</span> <span class="ident">promise</span>
-                    .<span class="ident">get</span>(<span class="ident">cx</span>, <span class="string">&quot;then&quot;</span>)<span class="question-mark">?</span>
-                    .<span class="ident">downcast_or_throw</span>::<span class="op">&lt;</span><span class="ident">JsFunction</span>, <span class="kw">_</span><span class="op">&gt;</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
-                <span class="ident">then</span>.<span class="ident">call</span>(<span class="ident">cx</span>, <span class="ident">promise</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">bound_resolve</span>, <span class="ident">bound_reject</span>])<span class="question-mark">?</span>;
+                <span class="ident">call_method</span>(<span class="ident">cx</span>, <span class="ident">promise</span>, <span class="string">&quot;then&quot;</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">bound_fulfill</span>, <span class="ident">bound_reject</span>])<span class="question-mark">?</span>;
+
                 <span class="prelude-val">Ok</span>(())
             });
             <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Err</span>(<span class="ident">exception</span>) <span class="op">=</span> <span class="ident">result</span> {
@@ -169,13 +160,16 @@
     <span class="doccomment">/// This is a convenience to allow the result handler to throw JavaScript exceptions using NeonResult.</span>
     <span class="doccomment">/// Note that this does *not* automatically treat incoming rejections as failures; if that is desired,</span>
     <span class="doccomment">/// it can be accomplished using `result.or_else(|e| cx.throw(e))?;` in the body of `transform`.</span>
-    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">then_try</span><span class="op">&lt;</span><span class="ident">XF</span><span class="op">&gt;</span>(
-        <span class="self">self</span>,
-        <span class="ident">transform</span>: <span class="ident">XF</span>,
-    ) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsFuture</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">PersistentException</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="kw">where</span> <span class="ident">XF</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>, <span class="ident">JsPromiseResult</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NeonResult</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
+    <span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">then_try</span><span class="op">&lt;</span><span class="ident">XF</span><span class="op">&gt;</span>(<span class="self">self</span>, <span class="ident">transform</span>: <span class="ident">XF</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsFuture</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">T</span>, <span class="ident">PersistentException</span><span class="op">&gt;</span><span class="op">&gt;</span>
+    <span class="kw">where</span>
+        <span class="ident">XF</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">FunctionContext</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>, <span class="ident">JsPromiseResult</span><span class="op">&lt;</span><span class="lifetime">&#39;b</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NeonResult</span><span class="op">&lt;</span><span class="ident">T</span><span class="op">&gt;</span>
             <span class="op">+</span> <span class="lifetime">&#39;static</span>
-            <span class="op">+</span> <span class="ident">Send</span>{
-        <span class="self">self</span>.<span class="ident">then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">cx</span>, <span class="ident">result</span><span class="op">|</span> <span class="ident">PersistentException</span>::<span class="ident">try_catch</span>(<span class="ident">cx</span>, <span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">transform</span>(<span class="ident">cx</span>, <span class="ident">result</span>)))
+            <span class="op">+</span> <span class="ident">Send</span>,
+    {
+        <span class="self">self</span>.<span class="ident">then</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">cx</span>, <span class="ident">result</span><span class="op">|</span> {
+            <span class="ident">cx</span>.<span class="ident">try_catch</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">transform</span>(<span class="ident">cx</span>, <span class="ident">result</span>))
+                .<span class="ident">map_err</span>(<span class="op">|</span><span class="ident">e</span><span class="op">|</span> <span class="ident">PersistentException</span>::<span class="ident">new</span>(<span class="ident">cx</span>, <span class="ident">e</span>))
+        })
     }
 }
 </pre></div>

@@ -50,9 +50,9 @@
 }
 
 <span class="doccomment">/// A constructor for [Result::Ok].</span>
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">JsResolvedResult</span>;
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct</span> <span class="ident">JsFulfilledResult</span>;
 
-<span class="kw">impl</span> <span class="ident">JsPromiseResultConstructor</span> <span class="kw">for</span> <span class="ident">JsResolvedResult</span> {
+<span class="kw">impl</span> <span class="ident">JsPromiseResultConstructor</span> <span class="kw">for</span> <span class="ident">JsFulfilledResult</span> {
     <span class="kw">fn</span> <span class="ident">make</span>(<span class="ident">value</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsPromiseResult</span> {
         <span class="prelude-val">Ok</span>(<span class="ident">value</span>)
     }

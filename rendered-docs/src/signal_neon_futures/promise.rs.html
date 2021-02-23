@@ -134,6 +134,17 @@
 <span id="131">131</span>
 <span id="132">132</span>
 <span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">//</span>
 <span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
@@ -146,7 +157,7 @@
 <span class="kw">use</span> <span class="ident">std</span>::<span class="ident">panic</span>::{<span class="ident">catch_unwind</span>, <span class="ident">AssertUnwindSafe</span>, <span class="ident">UnwindSafe</span>};
 
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">executor</span>::<span class="ident">ContextEx</span>;
-<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">describe_any</span>;
+<span class="kw">use</span> <span class="kw">crate</span>::<span class="ident">util</span>::<span class="ident">describe_panic</span>;
 <span class="kw">use</span> <span class="kw">crate</span>::<span class="kw-2">*</span>;
 
 <span class="kw">const</span> <span class="ident">RESOLVE_SLOT</span>: <span class="kw-2">&amp;</span><span class="ident">str</span> <span class="op">=</span> <span class="string">&quot;_resolve&quot;</span>;
@@ -168,11 +179,11 @@
 <span class="doccomment">/// Produces a JavaScript Promise that represents the result of a Rust computation.</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// There&#39;s a lot going on here, so let&#39;s break it down:</span>
-<span class="doccomment">/// - `future` must return a &quot;fulfill&quot; function, or fail with a JavaScript error stored as a PersistentException.</span>
-<span class="doccomment">/// - The &quot;fulfill&quot; function (`F`) must produce a result in a synchronous JavaScript context, or fail with a JavaScript exception.</span>
+<span class="doccomment">/// - `future` must return a &quot;settle&quot; function, or fail with a JavaScript error stored as a PersistentException.</span>
+<span class="doccomment">/// - The &quot;settle&quot; function (`F`) must produce a result in a synchronous JavaScript context, or fail with a JavaScript exception.</span>
 <span class="doccomment">/// - That value (`V`) will be the final result of the JavaScript Promise.</span>
-<span class="doccomment">/// - If there are any failures during the evaluation of the future or &quot;fulfill&quot; function, they will result in the rejection of the Promise.</span>
-<span class="doccomment">/// - If there are any panics during the evaluation of the future or &quot;fulfill&quot; function, they will be translated to JavaScript Errors (per Neon conventions).</span>
+<span class="doccomment">/// - If there are any failures during the evaluation of the future or &quot;settle&quot; function, they will result in the rejection of the Promise.</span>
+<span class="doccomment">/// - If there are any panics during the evaluation of the future or &quot;settle&quot; function, they will be translated to JavaScript Errors (per Neon conventions).</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// In practice, this is going to be the easiest way to produce a JavaScript Promise, especially for safely handling errors.</span>
 <span class="doccomment">///</span>
@@ -191,7 +202,7 @@
 <span class="doccomment">///     let trait_impl = TraitImpl::new(cx.queue(), js_info.root(&amp;mut cx));</span>
 <span class="doccomment">///     promise(&amp;mut cx, async move {</span>
 <span class="doccomment">///         let result = compute_result(trait_impl).await?;</span>
-<span class="doccomment">///         fulfill_promise(move |cx| Ok(cx.string(result)))</span>
+<span class="doccomment">///         settle_promise(move |cx| Ok(cx.string(result)))</span>
 <span class="doccomment">///     })</span>
 <span class="doccomment">/// }</span>
 <span class="doccomment">/// ```</span>
@@ -205,11 +216,12 @@
 {
     <span class="kw">let</span> <span class="ident">callbacks_object</span> <span class="op">=</span> <span class="ident">cx</span>.<span class="ident">empty_object</span>();
     <span class="kw">let</span> <span class="ident">save_promise_callbacks_fn</span> <span class="op">=</span> <span class="ident">JsFunction</span>::<span class="ident">new</span>(<span class="ident">cx</span>, <span class="ident">save_promise_callbacks</span>)<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">bind_fn</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">save_promise_callbacks_fn</span>
-        .<span class="ident">get</span>(<span class="ident">cx</span>, <span class="string">&quot;bind&quot;</span>)<span class="question-mark">?</span>
-        .<span class="ident">downcast_or_throw</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
-    <span class="kw">let</span> <span class="ident">bound_save_promise_callbacks</span> <span class="op">=</span>
-        <span class="ident">bind_fn</span>.<span class="ident">call</span>(<span class="ident">cx</span>, <span class="ident">save_promise_callbacks_fn</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">callbacks_object</span>])<span class="question-mark">?</span>;
+    <span class="kw">let</span> <span class="ident">bound_save_promise_callbacks</span> <span class="op">=</span> <span class="ident">call_method</span>(
+        <span class="ident">cx</span>,
+        <span class="ident">save_promise_callbacks_fn</span>,
+        <span class="string">&quot;bind&quot;</span>,
+        <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">callbacks_object</span>.<span class="ident">upcast</span>()],
+    )<span class="question-mark">?</span>;
 
     <span class="kw">let</span> <span class="ident">promise_ctor</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">cx</span>.<span class="ident">global</span>().<span class="ident">get</span>(<span class="ident">cx</span>, <span class="string">&quot;Promise&quot;</span>)<span class="question-mark">?</span>.<span class="ident">downcast_or_throw</span>(<span class="ident">cx</span>)<span class="question-mark">?</span>;
     <span class="kw">let</span> <span class="ident">promise</span> <span class="op">=</span> <span class="ident">promise_ctor</span>.<span class="ident">construct</span>(<span class="ident">cx</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">bound_save_promise_callbacks</span>])<span class="question-mark">?</span>;
@@ -218,38 +230,48 @@
     <span class="kw">let</span> <span class="ident">queue</span> <span class="op">=</span> <span class="ident">cx</span>.<span class="ident">queue</span>();
 
     <span class="ident">cx</span>.<span class="ident">run_future_on_queue</span>(<span class="ident">async</span> <span class="kw">move</span> {
-        <span class="kw">let</span> <span class="ident">result</span> <span class="op">=</span> <span class="ident">future</span>.<span class="ident">catch_unwind</span>().<span class="ident">await</span>;
+        <span class="kw">let</span> <span class="ident">result</span>: <span class="ident">std</span>::<span class="ident">thread</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">F</span>, <span class="ident">PersistentException</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
+            <span class="ident">future</span>.<span class="ident">catch_unwind</span>().<span class="ident">await</span>;
 
         <span class="ident">queue</span>.<span class="ident">send</span>(<span class="kw">move</span> <span class="op">|</span><span class="kw-2">mut</span> <span class="ident">cx</span><span class="op">|</span> <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NeonResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> {
-            <span class="kw">let</span> <span class="ident">resolved_result</span> <span class="op">=</span> <span class="kw">match</span> <span class="ident">result</span> {
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(<span class="ident">resolve</span>)) <span class="op">=</span><span class="op">&gt;</span> {
-                    <span class="comment">// This AssertUnwindSafe is not technically safe.</span>
-                    <span class="comment">// If we get a panic downstream, it is entirely possible the JavaScript context won&#39;t be usable anymore.</span>
-                    <span class="comment">// However, that&#39;s no more unsafe than JsAsyncContext::with_context,</span>
-                    <span class="comment">// or for that matter Neon automatically catching panics by default.</span>
-                    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cx</span> <span class="op">=</span> <span class="ident">AssertUnwindSafe</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>);
-                    <span class="ident">catch_unwind</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">cx</span>.<span class="ident">try_catch</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">resolve</span>(<span class="ident">cx</span>)))
-                }
-                <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">exception</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">exception</span>.<span class="ident">into_inner</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>))),
-                <span class="prelude-val">Err</span>(<span class="ident">panic</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">panic</span>),
-            };
-            <span class="kw">let</span> <span class="ident">folded_result</span> <span class="op">=</span> <span class="ident">resolved_result</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">panic</span><span class="op">|</span> {
-                <span class="prelude-val">Err</span>(<span class="ident">cx</span>
-                    .<span class="ident">error</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;unexpected panic: {}&quot;</span>, <span class="ident">describe_any</span>(<span class="kw-2">&amp;</span><span class="ident">panic</span>)))
-                    .<span class="ident">expect</span>(<span class="string">&quot;can create an Error&quot;</span>)
-                    .<span class="ident">upcast</span>())
-            });
+            <span class="kw">let</span> <span class="ident">settled_result</span>: <span class="ident">std</span>::<span class="ident">thread</span>::<span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span>, <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
+                <span class="kw">match</span> <span class="ident">result</span> {
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Ok</span>(<span class="ident">settle</span>)) <span class="op">=</span><span class="op">&gt;</span> {
+                        <span class="comment">// This AssertUnwindSafe is not technically safe.</span>
+                        <span class="comment">// If we get a panic downstream, it is entirely possible the JavaScript context won&#39;t be usable anymore.</span>
+                        <span class="comment">// However, that&#39;s no more unsafe than JsAsyncContext::with_context,</span>
+                        <span class="comment">// or for that matter Neon automatically catching panics by default.</span>
+                        <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">cx</span> <span class="op">=</span> <span class="ident">AssertUnwindSafe</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>);
+                        <span class="ident">catch_unwind</span>(<span class="kw">move</span> <span class="op">|</span><span class="op">|</span> <span class="ident">cx</span>.<span class="ident">try_catch</span>(<span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">settle</span>(<span class="ident">cx</span>)))
+                    }
+                    <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">exception</span>)) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Ok</span>(<span class="prelude-val">Err</span>(<span class="ident">exception</span>.<span class="ident">into_inner</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>))),
+                    <span class="prelude-val">Err</span>(<span class="ident">panic</span>) <span class="op">=</span><span class="op">&gt;</span> <span class="prelude-val">Err</span>(<span class="ident">panic</span>),
+                };
 
-            <span class="kw">let</span> (<span class="ident">value</span>, <span class="ident">callback_name</span>) <span class="op">=</span> <span class="kw">match</span> <span class="ident">folded_result</span> {
-                <span class="prelude-val">Ok</span>(<span class="ident">value</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">value</span>.<span class="ident">upcast</span>(), <span class="ident">RESOLVE_SLOT</span>),
-                <span class="prelude-val">Err</span>(<span class="ident">exception</span>) <span class="op">=</span><span class="op">&gt;</span> (<span class="ident">exception</span>, <span class="ident">REJECT_SLOT</span>),
-            };
+            <span class="kw">let</span> <span class="ident">folded_result</span>: <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">V</span><span class="op">&gt;</span>, <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsValue</span><span class="op">&gt;</span><span class="op">&gt;</span> <span class="op">=</span>
+                <span class="ident">settled_result</span>.<span class="ident">unwrap_or_else</span>(<span class="op">|</span><span class="ident">panic</span><span class="op">|</span> {
+                    <span class="prelude-val">Err</span>(<span class="ident">cx</span>
+                        .<span class="ident">error</span>(<span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;unexpected panic: {}&quot;</span>, <span class="ident">describe_panic</span>(<span class="kw-2">&amp;</span><span class="ident">panic</span>)))
+                        .<span class="ident">expect</span>(<span class="string">&quot;can create an Error&quot;</span>)
+                        .<span class="ident">upcast</span>())
+                });
 
             <span class="kw">let</span> <span class="ident">callbacks_object</span> <span class="op">=</span> <span class="ident">callbacks_object_root</span>.<span class="ident">into_inner</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>);
-            <span class="kw">let</span> <span class="ident">promise_callback</span>: <span class="ident">Handle</span><span class="op">&lt;</span><span class="ident">JsFunction</span><span class="op">&gt;</span> <span class="op">=</span> <span class="ident">callbacks_object</span>
-                .<span class="ident">get</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>, <span class="ident">callback_name</span>)<span class="question-mark">?</span>
-                .<span class="ident">downcast_or_throw</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>)<span class="question-mark">?</span>;
-            <span class="ident">promise_callback</span>.<span class="ident">call</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>, <span class="ident">callbacks_object</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">value</span>])<span class="question-mark">?</span>;
+
+            <span class="kw">match</span> <span class="ident">folded_result</span> {
+                <span class="prelude-val">Ok</span>(<span class="ident">value</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="ident">call_method</span>(
+                        <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>,
+                        <span class="ident">callbacks_object</span>,
+                        <span class="ident">RESOLVE_SLOT</span>,
+                        <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">value</span>.<span class="ident">upcast</span>()],
+                    )<span class="question-mark">?</span>;
+                }
+                <span class="prelude-val">Err</span>(<span class="ident">exception</span>) <span class="op">=</span><span class="op">&gt;</span> {
+                    <span class="ident">call_method</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">cx</span>, <span class="ident">callbacks_object</span>, <span class="ident">REJECT_SLOT</span>, <span class="macro">vec</span><span class="macro">!</span>[<span class="ident">exception</span>])<span class="question-mark">?</span>;
+                }
+            }
+
             <span class="prelude-val">Ok</span>(())
         });
     });
@@ -257,11 +279,11 @@
     <span class="prelude-val">Ok</span>(<span class="ident">promise</span>)
 }
 
-<span class="doccomment">/// Use this to return your &quot;fulfill&quot; function when using [promise()].</span>
+<span class="doccomment">/// Use this to return your &quot;settle&quot; function when using [promise()].</span>
 <span class="doccomment">///</span>
 <span class="doccomment">/// This works around a bug in the Rust compiler by providing extra type information.</span>
 <span class="doccomment">/// It is equivalent to [Ok].</span>
-<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">fulfill_promise</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="ident">callback</span>: <span class="ident">C</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">E</span><span class="op">&gt;</span>
+<span class="kw">pub</span> <span class="kw">fn</span> <span class="ident">settle_promise</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">T</span>, <span class="ident">E</span><span class="op">&gt;</span>(<span class="ident">callback</span>: <span class="ident">C</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">C</span>, <span class="ident">E</span><span class="op">&gt;</span>
 <span class="kw">where</span>
     <span class="ident">T</span>: <span class="ident">Value</span>,
     <span class="ident">C</span>: <span class="kw">for</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span> <span class="ident">FnOnce</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">TaskContext</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">JsResult</span><span class="op">&lt;</span><span class="lifetime">&#39;a</span>, <span class="ident">T</span><span class="op">&gt;</span>,

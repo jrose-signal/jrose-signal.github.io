@@ -111,6 +111,12 @@
 <span id="108">108</span>
 <span id="109">109</span>
 <span id="110">110</span>
+<span id="111">111</span>
+<span id="112">112</span>
+<span id="113">113</span>
+<span id="114">114</span>
+<span id="115">115</span>
+<span id="116">116</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">//</span>
 <span class="comment">// Copyright 2021 Signal Messenger, LLC.</span>
@@ -163,6 +169,9 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// Equivalent to `cx.queue().send(f)` except that `f` doesn&#39;t need to be `Send`.</span>
     <span class="kw">fn</span> <span class="ident">run_on_queue</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">FnOnce</span>(<span class="ident">TaskContext</span><span class="op">&lt;</span><span class="lifetime">&#39;_</span><span class="op">&gt;</span>) <span class="op">-</span><span class="op">&gt;</span> <span class="ident">NeonResult</span><span class="op">&lt;</span>()<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>) {
+        <span class="comment">// Because we&#39;re currently in a JavaScript context,</span>
+        <span class="comment">// and `f` will run on the event queue associated with the current context,</span>
+        <span class="comment">// we can assert that it&#39;s safe to Send `f` to the queue.</span>
         <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">AssertSendSafe</span>(<span class="ident">f</span>);
         <span class="self">self</span>.<span class="ident">queue</span>().<span class="ident">send</span>(<span class="kw">move</span> <span class="op">|</span><span class="ident">cx</span><span class="op">|</span> <span class="ident">f</span>.<span class="number">0</span>(<span class="ident">cx</span>));
     }
@@ -171,6 +180,9 @@
     <span class="doccomment">///</span>
     <span class="doccomment">/// Equivalent to `cx.queue().send_future(f)` except that `f` doesn&#39;t need to be `Send`.</span>
     <span class="kw">fn</span> <span class="ident">run_future_on_queue</span>(<span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="self">self</span>, <span class="ident">f</span>: <span class="kw">impl</span> <span class="ident">Future</span><span class="op">&lt;</span><span class="ident">Output</span> <span class="op">=</span> ()<span class="op">&gt;</span> <span class="op">+</span> <span class="lifetime">&#39;static</span>) {
+        <span class="comment">// Because we&#39;re currently in a JavaScript context,</span>
+        <span class="comment">// and `f` will run on the event queue associated with the current context,</span>
+        <span class="comment">// we can assert that it&#39;s safe to Send `f` to the queue.</span>
         <span class="kw">let</span> <span class="ident">f</span> <span class="op">=</span> <span class="ident">AssertSendSafe</span>(<span class="ident">f</span>);
         <span class="self">self</span>.<span class="ident">queue</span>().<span class="ident">send_future</span>(<span class="ident">f</span>);
     }

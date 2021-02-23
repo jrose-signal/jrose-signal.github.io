@@ -41,6 +41,7 @@
 <span id="38">38</span>
 <span id="39">39</span>
 <span id="40">40</span>
+<span id="41">41</span>
 </pre><div class="example-wrap"><pre class="rust ">
 <span class="comment">//</span>
 <span class="comment">// Copyright 2020-2021 Signal Messenger, LLC.</span>
@@ -51,14 +52,14 @@
 <span class="doccomment">//!</span>
 <span class="doccomment">//! Neon provides a way to expose *synchronous* JavaScript functions from Rust.</span>
 <span class="doccomment">//! This means that if Rust wants to wait for the result of a JavaScript promise,</span>
-<span class="doccomment">//! it can at best return a callback to continue its work when the promise resolves.</span>
+<span class="doccomment">//! it can at best return a callback to continue its work when the promise settles.</span>
 <span class="doccomment">//! This does not naturally compose with Rust&#39;s `async`, which works in terms of [Futures](trait@std::future::Future).</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! This crate provides functionality for (1) wrapping JavaScript futures so they can be awaited on in Rust,</span>
 <span class="doccomment">//! and (2) producing a JavaScript promise that wraps a Rust future. It does so by resuming execution</span>
-<span class="doccomment">//! of the Rust future on the JavaScript microtask queue whenever an awaited JavaScript promise is resolved.</span>
+<span class="doccomment">//! of the Rust future on the JavaScript microtask queue whenever an awaited JavaScript promise is settled.</span>
 <span class="doccomment">//!</span>
-<span class="doccomment">//! To get started, look at the [promise()] function and the [JsFuture::await_promise] method.</span>
+<span class="doccomment">//! To get started, look at the [promise()] function and the [JsFuture::from_promise] method.</span>
 <span class="doccomment">//!</span>
 <span class="doccomment">//! [Neon]: https://neon-bindings.com/</span>
 
@@ -76,11 +77,12 @@
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">future</span>::{<span class="ident">JsFuture</span>, <span class="ident">JsFutureBuilder</span>};
 
 <span class="kw">mod</span> <span class="ident">promise</span>;
-<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">promise</span>::{<span class="ident">fulfill_promise</span>, <span class="ident">promise</span>};
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">promise</span>::{<span class="ident">promise</span>, <span class="ident">settle_promise</span>};
 
 <span class="kw">mod</span> <span class="ident">result</span>;
 <span class="kw">pub</span> <span class="kw">use</span> <span class="ident">result</span>::<span class="ident">JsPromiseResult</span>;
 
 <span class="kw">mod</span> <span class="ident">util</span>;
+<span class="kw">pub</span> <span class="kw">use</span> <span class="ident">util</span>::<span class="ident">call_method</span>;
 </pre></div>
 </section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../../";window.currentCrate = "signal_neon_futures";</script><script src="../../main.js"></script><script src="../../source-script.js"></script><script src="../../source-files.js"></script><script defer src="../../search-index.js"></script></body></html>
