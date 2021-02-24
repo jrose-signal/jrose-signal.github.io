@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["expect_ready","Polls a future once; panics if it is not Ready."]],"mod":[["transform_helper",""]],"trait":[["Env","Used for returning newly-allocated buffers as efficiently as possible."]]});

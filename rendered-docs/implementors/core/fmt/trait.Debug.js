@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["libsignal_bridge"] = [{"text":"impl Debug for SignalFfiError","synthetic":false,"types":[]},{"text":"impl Debug for CallbackError","synthetic":false,"types":[]},{"text":"impl Debug for FfiDirection","synthetic":false,"types":[]},{"text":"impl Debug for SignalJniError","synthetic":false,"types":[]},{"text":"impl Debug for ThrownException","synthetic":false,"types":[]},{"text":"impl Debug for CallbackError","synthetic":false,"types":[]},{"text":"impl Debug for FfiCiphertextMessageType","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

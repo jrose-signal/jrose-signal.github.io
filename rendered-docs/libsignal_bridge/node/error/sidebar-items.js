@@ -1,0 +1,1 @@
+initSidebarItems({"fn":[["js_error_to_rust","Converts a JavaScript error message to a [`SignalProtocolError::ApplicationCallbackError`]."]],"struct":[["CallbackError","Represents an error returned by a callback."]]});

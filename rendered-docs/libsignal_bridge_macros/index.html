@@ -1,0 +1,127 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `libsignal_bridge_macros` crate."><meta name="keywords" content="rust, rustlang, rust-lang, libsignal_bridge_macros"><title>libsignal_bridge_macros - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../light.css"  id="themeStyle"><link rel="stylesheet" type="text/css" href="../dark.css" disabled ><link rel="stylesheet" type="text/css" href="../ayu.css" disabled ><script id="default-settings"></script><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<link rel="alternate icon" type="image/png" href="../favicon-16x16.png">
+<link rel="alternate icon" type="image/png" href="../favicon-32x32.png"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../libsignal_bridge_macros/index.html'><div class='logo-container rust-logo'><img src='../rust-logo.png' alt='logo'></div></a><p class="location">Crate libsignal_bridge_macros</p><div class="block version"><p>Version 0.1.0</p></div><div class="sidebar-elems"><a id="all-types" href="all.html"><p>See all libsignal_bridge_macros's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#enums">Enums</a></li><li><a href="#functions">Functions</a></li></ul></div><p class="location"></p><script>window.sidebarCurrent = {name: "libsignal_bridge_macros", ty: "mod", relpath: "../"};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!" aria-haspopup="menu"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices" role="menu"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" disabled autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><span class="help-button">?</span>
+                <a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class="fqn"><span class="out-of-band"><span id="render-detail"><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class="inner">&#x2212;</span>]</a></span><a class="srclink" href="../src/libsignal_bridge_macros/lib.rs.html#6-323" title="goto source code">[src]</a></span><span class="in-band">Crate <a class="mod" href="">libsignal_bridge_macros</a></span></h1><div class="docblock"><p>Generates C, Java, and Node entry points for Rust functions.</p>
+<p>The goal of the <code>bridge_fn</code> family of macros is to define a cross-language glue layer using
+strongly-typed Rust code. You can write a normal top-level Rust function exposing a particular
+operation, and additional functions will be generated for FFI, JNI, and Node bindings, mapping
+types automatically.</p>
+<p>It is explicitly <em>not</em> a goal for this layer to generate perfect C, Java, or TypeScript APIs.
+Rather, it should generate safe interfaces to <em>Rust</em> APIs, on top of which idiomatic Swift,
+Java, and TypeScript APIs can be built.</p>
+<h1 id="example" class="section-header"><a href="#example">Example</a></h1>
+<div class="example-wrap"><pre class="rust rust-example-rendered">
+<span class="attribute">#[<span class="ident">bridge_fn</span>]</span>
+<span class="kw">fn</span> <span class="ident">SenderKeyMessage_New</span>(
+    <span class="ident">key_id</span>: <span class="ident">u32</span>,
+    <span class="ident">iteration</span>: <span class="ident">u32</span>,
+    <span class="ident">ciphertext</span>: <span class="kw-2">&amp;</span>[<span class="ident">u8</span>],
+    <span class="ident">pk</span>: <span class="kw-2">&amp;</span><span class="ident">PrivateKey</span>,
+) <span class="op">-</span><span class="op">&gt;</span> <span class="prelude-ty">Result</span><span class="op">&lt;</span><span class="ident">SenderKeyMessage</span><span class="op">&gt;</span> {
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">csprng</span> <span class="op">=</span> <span class="ident">rand</span>::<span class="ident">rngs</span>::<span class="ident">OsRng</span>;
+    <span class="ident">SenderKeyMessage</span>::<span class="ident">new</span>(<span class="ident">key_id</span>, <span class="ident">iteration</span>, <span class="ident">ciphertext</span>, <span class="kw-2">&amp;</span><span class="kw-2">mut</span> <span class="ident">csprng</span>, <span class="ident">pk</span>)
+}</pre></div>
+<pre><code class="language-c">SignalFfiError *signal_sender_key_message_new(
+    SignalSenderKeyMessage **out,
+    uint32_t key_id,
+    uint32_t iteration,
+    const unsigned char *ciphertext,
+    size_t ciphertext_len,
+    const SignalPrivateKey *pk);
+</code></pre>
+<pre><code class="language-java">public static native long SenderKeyMessage_New(
+    int keyId,
+    int iteration,
+    byte[] ciphertext,
+    long pk);
+</code></pre>
+<pre><code class="language-typescript">export function SenderKeyMessage_New(
+    keyId: number,
+    iteration: number,
+    ciphertext: Buffer,
+    pk: Wrapper&lt;PrivateKey&gt;
+): SenderKeyMessage;
+</code></pre>
+<h1 id="async-support-for-node" class="section-header"><a href="#async-support-for-node">Async support for Node</a></h1>
+<p>For the Node bridge, if a <code>bridge_fn</code> is declared as <code>async</code>, it will return a JavaScript
+Promise and run the function on the JavaScript event loop using the <code>signal-neon-futures</code>
+crate. Interaction with JavaScript can be done through async callbacks, including trait objects
+defined using the <a href="https://crates.io/crates/async-trait"><code>async-trait</code></a> crate. Like the synchronous implementations of all three
+bridges, <strong>panics will be caught</strong> and translated to JavaScript exceptions.</p>
+<p>The FFI and JNI bridges do not support asynchronous execution; an <code>async</code> function is invoked
+and <code>expect</code>ed to complete immediately without blocking.</p>
+<h1 id="naming-conventions" class="section-header"><a href="#naming-conventions">Naming conventions</a></h1>
+<p>By default, <code>bridge_fn</code> tries to pick a good name for each exposed entry point:</p>
+<ul>
+<li>FFI: Convert the function's name to <code>lower_snake_case</code> and prepend <code>signal_</code>.</li>
+<li>JNI: Escape any underscores in the function's name per the <a href="https://docs.oracle.com/javase/8/docs/technotes/guides/jni/spec/design.html#resolving_native_method_names">JNI spec</a>, then prepend
+<code>Java_org_signal_client_internal_Native_</code> to expose the function as a static method of the
+class <code>org.signal.client.internal.Native</code>.</li>
+<li>Node: Use the original function's name.</li>
+</ul>
+<p>As such, the recommended naming scheme for <code>bridge_fn</code> functions is <code>ObjectOrGroup_Operation</code>.</p>
+<p>Any of these names can be replaced by specifying an argument to the <code>bridge_fn</code> attribute:</p>
+
+<div class="example-wrap"><pre class="rust rust-example-rendered">
+<span class="attribute">#[<span class="ident">bridge_fn</span>(<span class="ident">ffi</span> <span class="op">=</span> <span class="string">&quot;magic_alakazam&quot;</span>, <span class="ident">jni</span> <span class="op">=</span> <span class="string">&quot;Magic_1Alakazam&quot;</span>)]</span>
+<span class="kw">fn</span> <span class="ident">Abracadabra</span>() {
+  <span class="comment">// ...</span>
+}</pre></div>
+<p>A replaced name does not undergo any transformation, but is still prefixed with the required
+&quot;namespace&quot; for FFI and JNI.</p>
+<h1 id="limiting-to-certain-bridges" class="section-header"><a href="#limiting-to-certain-bridges">Limiting to certain bridges</a></h1>
+<p>Do not use <code>cfg(feature = &quot;abc&quot;)</code> to restrict a <code>bridge_fn</code> to certain bridges (e.g. &quot;just
+FFI&quot;). This interacts poorly with commands like <code>cargo clippy --workspace</code>, which try to
+validate all packages by enabling all three bridges at once. Instead, you can write e.g.
+<code>bridge_fn(jni = false)</code> to keep from exposing a particular function to Java.</p>
+<h1 id="adding-new-argument-and-result-types" class="section-header"><a href="#adding-new-argument-and-result-types">Adding new argument and result types</a></h1>
+<p>If your argument or result type is a Rust value being wrapped in an opaque box, declare it
+using the <code>bridge_handle</code> macro alongside other such types. Otherwise, there are two steps:</p>
+<ol>
+<li>
+<p>Argument and result types for FFI and JNI are determined by macros <code>ffi_arg_type</code>,
+<code>ffi_result_type</code>, <code>jni_arg_type</code>, and <code>jni_result_type</code>. You may need to add your new type
+there. JNI and Node types also undergo some additional transformation in the scripts
+<code>gen_java_decl.py</code> and <code>gen_ts_decl.py</code>, which you may need to tweak as well.</p>
+</li>
+<li>
+<p>Argument types conform to one or more of the following bridge-specific traits:</p>
+<ul>
+<li><code>ffi::ArgTypeInfo</code> or <code>ffi::SizedArgTypeInfo</code></li>
+<li><code>jni::ArgTypeInfo</code></li>
+<li><code>node::ArgTypeInfo</code> and/or <code>node::AsyncArgTypeInfo</code></li>
+</ul>
+<p>Similarly, result types conform to one or more of the following:</p>
+<ul>
+<li><code>ffi::ResultTypeInfo</code></li>
+<li><code>jni::ResultTypeInfo</code></li>
+<li><code>node::ResultTypeInfo</code></li>
+</ul>
+<p>These traits define how to convert between the bridge type and the Rust type used in the
+function as written. See each individual trait for more info on how to add a new type.</p>
+</li>
+</ol>
+<h1 id="limitations" class="section-header"><a href="#limitations">Limitations</a></h1>
+<ul>
+<li>
+<p>Input buffers require special treatment for FFI so that their size can be passed in.
+This needs special handling in the implementation of the macros to generate multiple
+parameters in the FFI entry point that map to a single parameter in the corresponding Rust
+function. Supporting more types that would require multiple parameters is non-trivial,
+particularly when trying to do so on the syntactic representation of the AST that macros are
+restricted to.</p>
+</li>
+<li>
+<p>There is no support for multiple return values, even though some of the FFI entry points
+use multiple output parameters. These functions must be implemented manually.</p>
+</li>
+</ul>
+</div><h2 id="modules" class="section-header"><a href="#modules">Modules</a></h2>
+<table><tr class="module-item"><td><a class="mod" href="ffi/index.html" title="libsignal_bridge_macros::ffi mod">ffi</a></td><td class="docblock-short"></td></tr><tr class="module-item"><td><a class="mod" href="jni/index.html" title="libsignal_bridge_macros::jni mod">jni</a></td><td class="docblock-short"></td></tr><tr class="module-item"><td><a class="mod" href="node/index.html" title="libsignal_bridge_macros::node mod">node</a></td><td class="docblock-short"></td></tr></table><h2 id="enums" class="section-header"><a href="#enums">Enums</a></h2>
+<table><tr class="module-item"><td><a class="enum" href="enum.ResultKind.html" title="libsignal_bridge_macros::ResultKind enum">ResultKind</a></td><td class="docblock-short"></td></tr></table><h2 id="functions" class="section-header"><a href="#functions">Functions</a></h2>
+<table><tr class="module-item"><td><a class="fn" href="fn.bridge_fn_impl.html" title="libsignal_bridge_macros::bridge_fn_impl fn">bridge_fn_impl</a></td><td class="docblock-short"></td></tr><tr class="module-item"><td><a class="fn" href="fn.name_for_meta_key.html" title="libsignal_bridge_macros::name_for_meta_key fn">name_for_meta_key</a></td><td class="docblock-short"></td></tr><tr class="module-item"><td><a class="fn" href="fn.value_for_meta_key.html" title="libsignal_bridge_macros::value_for_meta_key fn">value_for_meta_key</a></td><td class="docblock-short"></td></tr></table><h2 id="attributes" class="section-header"><a href="#attributes">Attribute Macros</a></h2>
+<table><tr class="module-item"><td><a class="attr" href="attr.bridge_fn.html" title="libsignal_bridge_macros::bridge_fn attr">bridge_fn</a></td><td class="docblock-short"><p>Generates C, Java, and Node entry points for a Rust function that returns a value.</p>
+</td></tr><tr class="module-item"><td><a class="attr" href="attr.bridge_fn_buffer.html" title="libsignal_bridge_macros::bridge_fn_buffer attr">bridge_fn_buffer</a></td><td class="docblock-short"><p>Generates C, Java, and Node entry points for a Rust function that returns a buffer,
+avoiding unnecessary copies of the return value.</p>
+</td></tr><tr class="module-item"><td><a class="attr" href="attr.bridge_fn_void.html" title="libsignal_bridge_macros::bridge_fn_void attr">bridge_fn_void</a></td><td class="docblock-short"><p>Generates C, Java, and Node entry points for a Rust function that returns <code>Result&lt;(), _&gt;</code>.</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><script>window.rootPath = "../";window.currentCrate = "libsignal_bridge_macros";</script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>

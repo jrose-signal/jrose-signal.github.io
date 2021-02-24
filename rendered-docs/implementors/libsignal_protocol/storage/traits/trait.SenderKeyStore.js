@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["libsignal_bridge"] = [{"text":"impl&lt;'impl0&gt; SenderKeyStore for &amp;'impl0 FfiSenderKeyStoreStruct","synthetic":false,"types":[]},{"text":"impl&lt;'a&gt; SenderKeyStore for JniSenderKeyStore&lt;'a&gt;","synthetic":false,"types":[]},{"text":"impl SenderKeyStore for NodeSenderKeyStore","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

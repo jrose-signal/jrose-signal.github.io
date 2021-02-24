@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["TransformHelper","A type that can perform operations inside Result and Option through Rust overloading trickery."]],"trait":[["TransformHelperImpl",""]]});

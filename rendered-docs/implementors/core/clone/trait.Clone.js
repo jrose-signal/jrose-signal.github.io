@@ -1,0 +1,4 @@
+(function() {var implementors = {};
+implementors["libsignal_bridge"] = [{"text":"impl Clone for FfiIdentityKeyStoreStruct","synthetic":false,"types":[]},{"text":"impl Clone for FfiPreKeyStoreStruct","synthetic":false,"types":[]},{"text":"impl Clone for FfiSignedPreKeyStoreStruct","synthetic":false,"types":[]},{"text":"impl Clone for FfiSessionStoreStruct","synthetic":false,"types":[]},{"text":"impl Clone for FfiSenderKeyStoreStruct","synthetic":false,"types":[]}];
+implementors["libsignal_bridge_macros"] = [{"text":"impl Clone for ResultKind","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["SignalJniError","The top-level error type for when something goes wrong."]],"struct":[["ThrownException","A lifetime-less reference to a thrown Java exception that can be used as an [`Error`]."]],"type":[["SignalJniResult",""]]});

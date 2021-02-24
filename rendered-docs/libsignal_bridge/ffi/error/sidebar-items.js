@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["SignalFfiError","The top-level error type (opaquely) returned to C clients when something goes wrong."]],"struct":[["CallbackError","Represents an error returned by a callback, following the C conventions that 0 means \"success\"."]],"type":[["SignalFfiResult",""]]});

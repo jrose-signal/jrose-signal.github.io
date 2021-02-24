@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["libsignal_bridge"] = [{"text":"impl&lt;'impl0&gt; PreKeyStore for &amp;'impl0 FfiPreKeyStoreStruct","synthetic":false,"types":[]},{"text":"impl&lt;'a&gt; PreKeyStore for JniPreKeyStore&lt;'a&gt;","synthetic":false,"types":[]},{"text":"impl PreKeyStore for NodePreKeyStore","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()

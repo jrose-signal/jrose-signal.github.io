@@ -1,0 +1,3 @@
+(function() {var implementors = {};
+implementors["libsignal_bridge"] = [{"text":"impl&lt;'impl0&gt; SessionStore for &amp;'impl0 FfiSessionStoreStruct","synthetic":false,"types":[]},{"text":"impl&lt;'a&gt; SessionStore for JniSessionStore&lt;'a&gt;","synthetic":false,"types":[]},{"text":"impl SessionStore for NodeSessionStore","synthetic":false,"types":[]}];
+if (window.register_implementors) {window.register_implementors(implementors);} else {window.pending_implementors = implementors;}})()
